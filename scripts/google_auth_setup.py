@@ -25,6 +25,10 @@ SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/calendar",
     "https://www.googleapis.com/auth/spreadsheets",
+    # Needed only by scripts/gmail_watch_setup.py (Pub/Sub topic/subscription
+    # creation for real-time Gmail push) — included here so you don't have
+    # to redo consent later if you set that up after this initial run.
+    "https://www.googleapis.com/auth/pubsub",
 ]
 
 

@@ -172,3 +172,27 @@ class GmailClient:
             lambda: service.users().messages().get(userId="me", id=message_id, format="full").execute()
         )
         return self._extract_body(full["payload"])
+
+    async def start_watch(self, topic_name: str) -> dict[str, Any]:
+        """Register (or renew) a Gmail push subscription: Gmail will
+        publish a notification to `topic_name` (a Pub/Sub topic resource
+        name, "projects/<id>/topics/<name>") on every mailbox change.
+        Expires after ~7 days — call this again before then to renew.
+        Returns {"historyId": ..., "expiration": <epoch ms as str>}.
+        """
+        if self._use_mock():
+            raise IntegrationError("gmail", "Cannot start a watch while running on mock credentials")
+
+        service = self._build_service()
+        result = await asyncio.to_thread(
+            lambda: service.users()
+            .watch(userId="me", body={"topicName": topic_name, "labelIds": ["INBOX"]})
+            .execute()
+        )
+        return result
+
+    async def stop_watch(self) -> None:
+        if self._use_mock():
+            return
+        service = self._build_service()
+        await asyncio.to_thread(lambda: service.users().stop(userId="me").execute())

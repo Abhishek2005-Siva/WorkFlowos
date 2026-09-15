@@ -18,6 +18,20 @@ class Settings(BaseSettings):
     google_token_path: str = "./credentials/google_token.json"
     calendar_ids: str = "primary"
 
+    # Gmail real-time push (Cloud Pub/Sub) — see scripts/gmail_watch_setup.py.
+    # gmail_watch_topic is the full "projects/<id>/topics/<name>" resource;
+    # its presence is what tells main.py to start/renew the watch on boot.
+    gmail_watch_topic: str = ""
+    gmail_webhook_secret: str = ""
+
+    # Raw JSON contents of the OAuth client + token files, for deployments
+    # (Railway etc.) whose filesystem is ephemeral and can't hold a
+    # git-ignored secret file — main.py writes these out to
+    # google_credentials_path / google_token_path on every boot if set.
+    # Local dev doesn't need these; the files on disk are enough.
+    google_credentials_json: str = ""
+    google_token_json: str = ""
+
     # Slack
     slack_bot_token: str = ""
     slack_signing_secret: str = ""

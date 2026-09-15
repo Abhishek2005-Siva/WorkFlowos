@@ -1,13 +1,13 @@
 """Inbound webhooks from external services.
 
-Gmail's push notifications and Todoist's webhooks are stubbed to trigger a
-workflow cycle — wiring the actual Cloud Pub/Sub subscription for Gmail is
-a deployment-time concern (see docs/API_INTEGRATIONS.md) and isn't needed
-for local development, where the poller in main.py drives the same code
-path on an interval.
+Gmail's push notifications arrive here via a Cloud Pub/Sub push
+subscription — see scripts/gmail_watch_setup.py for how that's wired up
+(topic, IAM grant, subscription, and the users.watch() call that starts
+it). Todoist's webhook is stubbed since nothing currently needs it.
 """
 from __future__ import annotations
 
+import base64
 import json
 import urllib.parse
 
@@ -24,7 +24,31 @@ logger = get_logger(__name__)
 
 
 @router.post("/gmail")
-async def gmail_webhook(background_tasks: BackgroundTasks):
+async def gmail_webhook(request: Request, background_tasks: BackgroundTasks, token: str = ""):
+    """Pub/Sub push endpoint. Always acks with 200 quickly (Pub/Sub
+    retries with backoff on anything else, which we don't want for a
+    payload we simply couldn't parse) and does the actual work in the
+    background.
+
+    Auth: a shared secret in the URL (?token=...), matched against
+    GMAIL_WEBHOOK_SECRET, since Pub/Sub push doesn't sign requests unless
+    you configure OIDC auth on the subscription (a stronger option, not
+    set up here — see docs/API_INTEGRATIONS.md).
+    """
+    settings = get_settings()
+    if settings.gmail_webhook_secret and token != settings.gmail_webhook_secret:
+        logger.warning("webhook.gmail_invalid_token")
+        return {"status": "rejected"}
+
+    try:
+        envelope = await request.json()
+        message = envelope.get("message", {})
+        data_b64 = message.get("data", "")
+        decoded = json.loads(base64.b64decode(data_b64).decode("utf-8")) if data_b64 else {}
+        logger.info("webhook.gmail_notification", email=decoded.get("emailAddress"), history_id=decoded.get("historyId"))
+    except Exception as exc:
+        logger.warning("webhook.gmail_parse_failed", error=str(exc))
+
     background_tasks.add_task(orchestrator.run_cycle)
     return {"status": "accepted"}
 
