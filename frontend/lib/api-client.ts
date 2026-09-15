@@ -27,6 +27,9 @@ export const api = {
   resolveApproval: (decisionId: string, approved: boolean) =>
     request<{ resolved: boolean }>(`/workflow/approvals/${decisionId}?approved=${approved}`, { method: "POST" }),
   health: () => request<{ status: string; mock_mode: boolean }>("/health"),
+  liveStatus: () => request<{ live: boolean; gmail_watch_configured: boolean }>("/workflow/live-status"),
+  setLiveStatus: (live: boolean) =>
+    request<{ live: boolean; error?: string }>(`/workflow/live-status?live=${live}`, { method: "POST" }),
 };
 
 export { BACKEND_URL };

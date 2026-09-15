@@ -16,6 +16,7 @@ from fastapi import APIRouter, BackgroundTasks, Request
 from backend.config import get_settings
 from backend.core.approvals import approval_store
 from backend.core.orchestrator import orchestrator
+from backend.core.system_state import system_state
 from backend.utils.logging import get_logger
 from backend.utils.webhooks import verify_slack_signature
 
@@ -39,6 +40,10 @@ async def gmail_webhook(request: Request, background_tasks: BackgroundTasks, tok
     if settings.gmail_webhook_secret and token != settings.gmail_webhook_secret:
         logger.warning("webhook.gmail_invalid_token")
         return {"status": "rejected"}
+
+    if not system_state.is_live:
+        logger.info("webhook.gmail_ignored_not_live")
+        return {"status": "ignored", "reason": "not live"}
 
     try:
         envelope = await request.json()

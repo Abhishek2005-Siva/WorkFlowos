@@ -2,12 +2,18 @@
 by the approve/reject UI (an alternative to clicking in Slack)."""
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import APIRouter, BackgroundTasks
 
+from backend.config import get_settings
 from backend.core.approvals import approval_store
 from backend.core.orchestrator import orchestrator
+from backend.core.system_state import system_state
+from backend.utils.logging import get_logger
 
 router = APIRouter(prefix="/workflow", tags=["workflow"])
+logger = get_logger(__name__)
 
 
 @router.post("/trigger")
@@ -51,3 +57,38 @@ async def resolve_approval(decision_id: str, approved: bool):
 @router.get("/completed")
 async def completed_workflows(limit: int = 20):
     return {"workflows": orchestrator.completed_workflows[-limit:]}
+
+
+@router.get("/live-status")
+async def live_status():
+    settings = get_settings()
+    return {"live": system_state.is_live, "gmail_watch_configured": bool(settings.gmail_watch_topic)}
+
+
+@router.post("/live-status")
+async def set_live_status(live: bool, background_tasks: BackgroundTasks):
+    settings = get_settings()
+    gmail = orchestrator.email_agent.gmail_client
+
+    if live:
+        if settings.gmail_watch_topic and not gmail.is_mock:
+            try:
+                await gmail.start_watch(settings.gmail_watch_topic)
+                system_state.last_watch_renewal = asyncio.get_event_loop().time()
+            except Exception as exc:
+                logger.error("live_status.start_watch_failed", error=str(exc))
+                return {"live": system_state.is_live, "error": str(exc)}
+        system_state.is_live = True
+        # Going live also catches up on whatever's already sitting unread,
+        # not just future changes — otherwise "Live" would silently do
+        # nothing until the next new email arrives.
+        background_tasks.add_task(orchestrator.run_cycle)
+    else:
+        system_state.is_live = False
+        if settings.gmail_watch_topic and not gmail.is_mock:
+            try:
+                await gmail.stop_watch()
+            except Exception as exc:
+                logger.warning("live_status.stop_watch_failed", error=str(exc))
+
+    return {"live": system_state.is_live}

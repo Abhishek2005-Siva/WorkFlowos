@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import get_settings
 from backend.core.orchestrator import orchestrator
+from backend.core.system_state import system_state
 from backend.models.db import init_db
 from backend.routes import agents, events, knowledge, webhooks, workflow, ws
 from backend.utils.logging import configure_logging, get_logger
@@ -39,6 +40,7 @@ def _materialize_google_credentials() -> None:
         path.write_text(content)
         logger.info("startup.materialized_google_credential", path=str(path))
 
+
 GMAIL_WATCH_RENEWAL_SECONDS = 6 * 24 * 60 * 60  # renew a day before the 7-day expiry
 
 
@@ -53,14 +55,24 @@ async def _poll_loop() -> None:
 
 
 async def _gmail_watch_renewal_loop() -> None:
+    """Checks hourly whether the watch needs (re)starting — only while
+    the user has actually flipped the dashboard's Live switch on, and
+    only every ~6 days once it has. Does nothing while stopped."""
     settings = get_settings()
+    check_interval = 60 * 60
     while True:
+        await asyncio.sleep(check_interval)
+        if not system_state.is_live:
+            continue
+        now = asyncio.get_event_loop().time()
+        if system_state.last_watch_renewal and now - system_state.last_watch_renewal < GMAIL_WATCH_RENEWAL_SECONDS:
+            continue
         try:
             result = await orchestrator.email_agent.gmail_client.start_watch(settings.gmail_watch_topic)
-            logger.info("gmail_watch.started", history_id=result.get("historyId"), expiration=result.get("expiration"))
+            system_state.last_watch_renewal = now
+            logger.info("gmail_watch.renewed", history_id=result.get("historyId"), expiration=result.get("expiration"))
         except Exception as exc:
             logger.error("gmail_watch.renewal_failed", error=str(exc))
-        await asyncio.sleep(GMAIL_WATCH_RENEWAL_SECONDS)
 
 
 @asynccontextmanager
