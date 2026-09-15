@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -38,10 +38,18 @@ async def test_negotiation_escalates_when_every_slot_is_blocked():
     all_slots = await calendar_agent.check_availability(duration_minutes=30)
     top_slot = all_slots[0]
 
-    # Seed a deadline on every candidate slot the calendar agent could offer
-    # so negotiation is forced to exhaust its iteration budget.
-    for slot in all_slots:
-        await task_agent.seed_mock_deadline("Blocking deadline", datetime.fromisoformat(slot["start"]))
+    # Seed a deadline on every 30-minute mark across the full 48h window,
+    # not just the current top-12 candidates: once negotiation excludes a
+    # slot via `avoid`, _find_gaps recomputes and can surface a *new*
+    # candidate outside the original top 12 to fill that cap. Only a dense
+    # blanket across the whole search space guarantees no gap survives
+    # regardless of which slots the algorithm happens to rank highest.
+    now = datetime.now(timezone.utc)
+    cursor = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+    window_end = now + timedelta(hours=48)
+    while cursor < window_end:
+        await task_agent.seed_mock_deadline("Blocking deadline", cursor)
+        cursor += timedelta(minutes=30)
 
     result = await protocol.negotiate_meeting_conflict(
         top_slot, 30, {"content": "Quarterly planning doc"}

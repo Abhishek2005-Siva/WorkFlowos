@@ -16,8 +16,23 @@ router = APIRouter(prefix="/workflow", tags=["workflow"])
 logger = get_logger(__name__)
 
 
+def _real_gmail_blocked() -> bool:
+    """True when Gmail is connected for real but the Live switch is off.
+
+    "Run Demo" / "Process Inbox" are safe, repeatable no-op-risk buttons
+    while Gmail is mock — but once real credentials exist they'd read (and
+    act on) your actual inbox. Requiring Live for those too, not just the
+    push webhook, is what this guards: an accidental click (or, as
+    happened once during development, an API call made without stopping
+    to think it through) should not be able to take real-world action
+    while the dashboard says "Stopped"."""
+    return not orchestrator.email_agent.gmail_client.is_mock and not system_state.is_live
+
+
 @router.post("/trigger")
 async def trigger_cycle(background_tasks: BackgroundTasks, max_emails: int = 3):
+    if _real_gmail_blocked():
+        return {"status": "blocked", "reason": "Real Gmail is connected but the system is Stopped — click Go Live first."}
     background_tasks.add_task(orchestrator.run_cycle, max_emails)
     return {"status": "started"}
 
@@ -39,6 +54,8 @@ async def trigger_conflict_demo(background_tasks: BackgroundTasks):
     isn't left hanging on the click. Progress streams over /ws/events
     regardless of how long it takes.
     """
+    if _real_gmail_blocked():
+        return {"status": "blocked", "reason": "Real Gmail is connected but the system is Stopped — click Go Live first."}
     background_tasks.add_task(_seed_then_run)
     return {"status": "started"}
 

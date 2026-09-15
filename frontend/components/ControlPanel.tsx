@@ -9,6 +9,7 @@ export default function ControlPanel({ connected }: { connected: boolean }) {
   const [isLive, setIsLive] = useState<boolean | null>(null);
   const [watchConfigured, setWatchConfigured] = useState(false);
   const [liveError, setLiveError] = useState<string | null>(null);
+  const [blockedReason, setBlockedReason] = useState<string | null>(null);
 
   useEffect(() => {
     api
@@ -27,8 +28,10 @@ export default function ControlPanel({ connected }: { connected: boolean }) {
 
   const runDemo = async () => {
     setBusy("demo");
+    setBlockedReason(null);
     try {
-      await api.triggerDemo();
+      const result = await api.triggerDemo();
+      if (result.status === "blocked") setBlockedReason(result.reason ?? "Blocked.");
     } finally {
       setTimeout(() => setBusy(null), 1000);
     }
@@ -36,8 +39,10 @@ export default function ControlPanel({ connected }: { connected: boolean }) {
 
   const processInbox = async () => {
     setBusy("inbox");
+    setBlockedReason(null);
     try {
-      await api.triggerCycle(3);
+      const result = await api.triggerCycle(3);
+      if (result.status === "blocked") setBlockedReason(result.reason ?? "Blocked.");
     } finally {
       setTimeout(() => setBusy(null), 1000);
     }
@@ -89,6 +94,12 @@ export default function ControlPanel({ connected }: { connected: boolean }) {
           </button>
         </div>
       </div>
+
+      {blockedReason && (
+        <p className="rounded-lg border border-amber-500/40 bg-amber-950/20 px-3 py-2 text-xs text-amber-300">
+          ⚠️ {blockedReason}
+        </p>
+      )}
 
       {isLive !== null && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-700 bg-slate-900/50 p-3">

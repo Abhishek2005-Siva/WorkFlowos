@@ -20,8 +20,8 @@ export const api = {
   conflicts: (limit = 20) => request<{ conflicts: import("./types").Conflict[] }>(`/conflicts?limit=${limit}`),
   graph: () => request<import("./types").GraphSnapshot>("/knowledge/graph"),
   triggerCycle: (maxEmails = 3) =>
-    request<{ status: string }>(`/workflow/trigger?max_emails=${maxEmails}`, { method: "POST" }),
-  triggerDemo: () => request<{ status: string }>("/workflow/demo", { method: "POST" }),
+    request<{ status: string; reason?: string }>(`/workflow/trigger?max_emails=${maxEmails}`, { method: "POST" }),
+  triggerDemo: () => request<{ status: string; reason?: string }>("/workflow/demo", { method: "POST" }),
   pendingApprovals: () =>
     request<{ pending: import("./types").PendingApproval[] }>("/workflow/approvals/pending"),
   resolveApproval: (decisionId: string, approved: boolean) =>
