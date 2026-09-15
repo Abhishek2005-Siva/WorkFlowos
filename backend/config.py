@@ -57,6 +57,11 @@ class Settings(BaseSettings):
     enable_auto_poll: bool = False
     poll_interval_seconds: int = 60
 
+    # CORS: explicit origins (comma-separated) plus a regex for platforms
+    # that mint a new subdomain per deploy (Vercel preview URLs etc).
+    cors_origins: str = "http://localhost:3000"
+    cors_origin_regex: str = r"https://.*\.vercel\.app"
+
     # Backend
     backend_host: str = "0.0.0.0"
     backend_port: int = 8000
@@ -67,6 +72,10 @@ class Settings(BaseSettings):
     @property
     def calendar_id_list(self) -> list[str]:
         return [c.strip() for c in self.calendar_ids.split(",") if c.strip()]
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
 
 @lru_cache
