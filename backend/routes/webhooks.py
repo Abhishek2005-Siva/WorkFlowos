@@ -15,8 +15,10 @@ from fastapi import APIRouter, BackgroundTasks, Request
 
 from backend.config import get_settings
 from backend.core.approvals import approval_store
+from backend.core.event_bus import event_bus
 from backend.core.orchestrator import orchestrator
 from backend.core.system_state import system_state
+from backend.core.types import EventType
 from backend.utils.logging import get_logger
 from backend.utils.webhooks import verify_slack_signature
 
@@ -43,6 +45,15 @@ async def gmail_webhook(request: Request, background_tasks: BackgroundTasks, tok
 
     if not system_state.is_live:
         logger.info("webhook.gmail_ignored_not_live")
+        # Pub/Sub firing correctly but silently doing nothing while
+        # Stopped looks identical to Pub/Sub being broken — surface it on
+        # the dashboard instead of only in backend logs nobody's watching.
+        await event_bus.publish(
+            type=EventType.EMAIL_RECEIVED,
+            agent_name="System",
+            message="📧 New email arrived — ignored because automation is Stopped. Click Go Live to process it.",
+            category="warning",
+        )
         return {"status": "ignored", "reason": "not live"}
 
     try:
