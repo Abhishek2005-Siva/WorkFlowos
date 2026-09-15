@@ -102,6 +102,10 @@ class GmailClient:
         # every other integration falls back when its own key is missing.
         return self.settings.mock_mode or not os.path.exists(self.settings.google_token_path)
 
+    @property
+    def is_mock(self) -> bool:
+        return self._use_mock()
+
     async def list_messages(self, query: str = "is:unread", max_results: int = 5) -> list[dict[str, Any]]:
         if self._use_mock():
             await asyncio.sleep(0.15)

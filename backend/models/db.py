@@ -98,6 +98,20 @@ class MetricRecord(Base):
     success: Mapped[bool] = mapped_column(default=True)
 
 
+class ProcessedEmail(Base):
+    """Idempotency guard for the Email Agent. Gmail push notifications
+    fire on any mailbox change, not just new mail, and the agent always
+    queries is:unread fresh — without this, the same still-unread email
+    could get reprocessed (and re-approved into a duplicate real calendar
+    invite) on every subsequent notification."""
+
+    __tablename__ = "processed_emails"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    message_id: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    processed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 _engine = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
 
