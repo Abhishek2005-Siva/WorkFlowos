@@ -52,12 +52,48 @@ class SheetsClient:
         self._service = build("sheets", "v4", credentials=creds)
         return self._service
 
-    async def append_row(self, values: list[Any], sheet_range: str = "Sheet1!A1") -> dict[str, Any]:
-        if (
+    def _use_mock(self) -> bool:
+        return (
             self.settings.mock_mode
             or not self.settings.google_sheets_spreadsheet_id
             or not os.path.exists(self.settings.google_token_path)
-        ):
+        )
+
+    @property
+    def is_mock(self) -> bool:
+        return self._use_mock()
+
+    async def ensure_tab_exists(self, tab_name: str, header: list[str] | None = None) -> None:
+        """Every automation below gets its own tab in the one configured
+        spreadsheet rather than requiring a separate sheet per feature —
+        creates it (with a header row) on first use if it isn't there."""
+        if self._use_mock():
+            return
+        try:
+            service = self._build_service()
+            meta = await asyncio.to_thread(
+                lambda: service.spreadsheets()
+                .get(spreadsheetId=self.settings.google_sheets_spreadsheet_id)
+                .execute()
+            )
+            existing = {s["properties"]["title"] for s in meta.get("sheets", [])}
+            if tab_name in existing:
+                return
+            await asyncio.to_thread(
+                lambda: service.spreadsheets()
+                .batchUpdate(
+                    spreadsheetId=self.settings.google_sheets_spreadsheet_id,
+                    body={"requests": [{"addSheet": {"properties": {"title": tab_name}}}]},
+                )
+                .execute()
+            )
+            if header:
+                await self.append_row(header, sheet_range=f"{tab_name}!A1")
+        except Exception as exc:
+            logger.warning("sheets.ensure_tab_failed", tab=tab_name, error=str(exc))
+
+    async def append_row(self, values: list[Any], sheet_range: str = "Sheet1!A1") -> dict[str, Any]:
+        if self._use_mock():
             await asyncio.sleep(0.1)
             self.mock_rows.append(values)
             return {"updates": {"updatedRange": sheet_range, "updatedRows": 1}}

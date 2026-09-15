@@ -27,7 +27,10 @@ from backend.core.approvals import approval_store
 from backend.core.event_bus import event_bus, new_id
 from backend.core.protocol import AgentNegotiationProtocol
 from backend.core.types import EventType
+from backend.integrations.google_sheets import SheetsClient
 from backend.utils.logging import get_logger
+
+EMAIL_TASKS_SHEET_TAB = "EmailTasks"
 
 logger = get_logger(__name__)
 
@@ -64,6 +67,7 @@ class Orchestrator:
         self.slack_agent = SlackAgent()
         self.alert_agent = AlertAgent()
         self.github_agent = GitHubAgent()
+        self.sheets_client = SheetsClient()
         self.protocol = AgentNegotiationProtocol(self.calendar_agent, self.task_agent)
 
         self.agents = {
@@ -243,8 +247,27 @@ class Orchestrator:
 
     async def _node_create_task_only(self, state: WorkflowState) -> dict[str, Any]:
         intent = state["action"]["intent"]
-        action = {"title": intent["topic"], "description": intent.get("context", "")}
+        action = {
+            "title": intent["topic"],
+            "description": intent.get("context", ""),
+            "deadline": intent.get("deadline"),
+        }
         result = await self.task_agent.create_task_hierarchy(action)
+
+        await self.sheets_client.ensure_tab_exists(
+            EMAIL_TASKS_SHEET_TAB, header=["timestamp", "topic", "requester", "category", "deadline"]
+        )
+        await self.sheets_client.append_row(
+            [
+                datetime.now(timezone.utc).isoformat(),
+                intent["topic"],
+                intent.get("requester", ""),
+                intent.get("category") or "other",
+                intent.get("deadline") or "",
+            ],
+            sheet_range=f"{EMAIL_TASKS_SHEET_TAB}!A1",
+        )
+
         return {"task_result": result}
 
     async def _node_handle_other(self, state: WorkflowState) -> dict[str, Any]:

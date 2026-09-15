@@ -49,6 +49,18 @@ class Settings(BaseSettings):
     # GitHub
     github_token: str = ""
     github_repo: str = ""
+    github_webhook_secret: str = ""
+
+    # Discord slash commands (separate from the webhook alert channel)
+    discord_public_key: str = ""
+    discord_application_id: str = ""
+
+    # Feature toggles for the scheduled/webhook-driven automations —
+    # everything defaults off so enabling one is an explicit, auditable
+    # step rather than something that starts firing the moment code ships.
+    enable_daily_standup: bool = False
+    enable_weekly_report: bool = False
+    standup_slack_channel: str = "#agent-activity"
 
     # Google Sheets
     google_sheets_spreadsheet_id: str = ""

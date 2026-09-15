@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
@@ -32,10 +33,16 @@ Respond with ONLY a JSON object (no markdown fences, no commentary) with exactly
   "requester": the sender's display name,
   "topic": short topic summary (<= 8 words),
   "duration_estimated": integer minutes if action is schedule_meeting, else null,
+  "deadline": an ISO 8601 date (YYYY-MM-DD) if action is create_task and a deadline is
+    mentioned or reasonably implied (e.g. "by Friday"), else null,
+  "category": one of "admin" | "review" | "development" | "planning" | "other" if action
+    is create_task, else null,
   "urgency": one of "low" | "normal" | "high",
   "context": one sentence of context useful for scheduling/task creation,
   "confidence": float between 0 and 1
 }}
+
+Today's date is {today} — resolve relative dates ("by Friday", "next week") against it.
 
 Email:
 Subject: {subject}
@@ -110,11 +117,20 @@ def _heuristic_extract_intent(email: dict[str, Any]) -> dict[str, Any]:
 
     urgency = "high" if any(k in text for k in ["urgent", "asap", "immediately"]) else "normal"
 
+    deadline = None
+    if action == "create_task":
+        for keyword, delta_days in (("today", 0), ("tomorrow", 1), ("friday", 4), ("next week", 7)):
+            if keyword in text:
+                deadline = (datetime.now(timezone.utc) + timedelta(days=delta_days)).date().isoformat()
+                break
+
     return {
         "action": action,
         "requester": requester,
         "topic": (email.get("subject") or "General topic")[:80],
         "duration_estimated": duration,
+        "deadline": deadline,
+        "category": "other" if action == "create_task" else None,
         "urgency": urgency,
         "context": f"Heuristic extraction (mock mode) from subject: {email.get('subject', '')}",
         "confidence": 0.6,
@@ -134,6 +150,7 @@ async def llm_extract_intent(email: dict[str, Any]) -> dict[str, Any]:
         subject=email.get("subject", ""),
         sender=email.get("from", ""),
         body=(email.get("body", "") or "")[:4000],
+        today=datetime.now(timezone.utc).date().isoformat(),
     )
 
     try:
@@ -183,3 +200,118 @@ async def llm_explain_slot_choice(slot: dict[str, Any], all_slots: list[dict[str
     except Exception as exc:
         logger.warning("llm.slot_explanation_failed", error=str(exc))
         return "recommended based on availability"
+
+
+async def llm_synthesize_standup(
+    completed_tasks: list[str], commits: list[str], notes: list[str]
+) -> str:
+    """Turns raw activity (task titles, commit messages, notes) into a
+    short human-readable standup update. Mocked with a plain bullet list
+    so the pipeline works without spending on the LLM."""
+    settings = get_settings()
+    if settings.mock_mode or not settings.nvidia_api_key:
+        lines = ["**Yesterday:**"]
+        lines += [f"- {t}" for t in completed_tasks[:5]] or ["- No completed tasks recorded"]
+        if commits:
+            lines.append("**Commits:**")
+            lines += [f"- {c}" for c in commits[:5]]
+        if notes:
+            lines.append("**Notes:**")
+            lines += [f"- {n}" for n in notes[:3]]
+        return "\n".join(lines)
+
+    prompt = (
+        "Write a concise daily standup update (under 120 words, markdown bullets, "
+        "sections: Yesterday / Today's focus / Blockers) from this raw activity. "
+        "If something is ambiguous, make a reasonable inference rather than asking questions.\n\n"
+        f"Completed tasks: {completed_tasks}\n"
+        f"Recent commits: {commits}\n"
+        f"Notes: {notes}\n"
+    )
+    try:
+        text = await _chat_completion(prompt, max_tokens=600)
+        return text.strip()
+    except Exception as exc:
+        logger.warning("llm.standup_synthesis_failed", error=str(exc))
+        return "Standup synthesis failed — raw activity: " + ", ".join(completed_tasks[:5])
+
+
+async def llm_review_code(diff: str, pr_title: str) -> str:
+    """Reviews a unified diff and returns markdown review comments.
+    Mocked with a generic placeholder — a real code review needs the
+    actual model, there's no useful heuristic stand-in."""
+    settings = get_settings()
+    if settings.mock_mode or not settings.nvidia_api_key:
+        return (
+            "🤖 **Automated review (mock mode)**\n\n"
+            "No real LLM configured — this is a placeholder. In real mode, "
+            "this comment contains an actual review of the diff."
+        )
+
+    prompt = (
+        f'Review this pull request titled "{pr_title}". Give under 150 words of '
+        "markdown-formatted feedback: correctness concerns first, then style/simplification "
+        "suggestions, then a one-line verdict (Looks good / Needs changes / Needs discussion). "
+        "Be specific — reference actual lines/symbols from the diff, not generic advice. "
+        "If the diff is trivial or looks fine, say so briefly rather than inventing nitpicks.\n\n"
+        f"```diff\n{diff[:8000]}\n```"
+    )
+    try:
+        text = await _chat_completion(prompt, max_tokens=900)
+        return text.strip()
+    except Exception as exc:
+        logger.warning("llm.code_review_failed", error=str(exc))
+        return "🤖 Automated review failed — a human should take a look at this one."
+
+
+async def llm_triage_issue(title: str, body: str) -> dict[str, Any]:
+    """Classifies a GitHub issue: priority + short reasoning. Mocked with
+    a keyword heuristic matching the same spirit as the email intent
+    heuristic fallback."""
+    settings = get_settings()
+    text = f"{title} {body}".lower()
+
+    if settings.mock_mode or not settings.nvidia_api_key:
+        if any(k in text for k in ["crash", "data loss", "security", "production down"]):
+            priority = "critical"
+        elif any(k in text for k in ["bug", "error", "broken", "regression"]):
+            priority = "high"
+        elif any(k in text for k in ["enhancement", "feature", "idea"]):
+            priority = "low"
+        else:
+            priority = "medium"
+        return {"priority": priority, "reasoning": "Heuristic keyword match (mock mode)."}
+
+    prompt = (
+        "Classify this GitHub issue's priority as exactly one of: critical, high, medium, low. "
+        "Respond with ONLY a JSON object: {\"priority\": \"...\", \"reasoning\": \"<one sentence>\"}.\n\n"
+        f"Title: {title}\nBody: {body[:2000]}"
+    )
+    try:
+        raw = await _chat_completion(prompt, max_tokens=400)
+        match = re.search(r"\{.*\}", raw, flags=re.DOTALL)
+        return json.loads(match.group(0) if match else raw)
+    except Exception as exc:
+        logger.warning("llm.issue_triage_failed", error=str(exc))
+        return {"priority": "medium", "reasoning": "Triage failed, defaulted to medium."}
+
+
+async def llm_extract_action_items(raw_notes: str) -> list[str]:
+    """Pulls action items out of freeform meeting notes. Mocked with a
+    simple "lines starting with -" heuristic."""
+    settings = get_settings()
+    if settings.mock_mode or not settings.nvidia_api_key:
+        return [line.strip("- ").strip() for line in raw_notes.splitlines() if line.strip().startswith("-")][:5]
+
+    prompt = (
+        "Extract action items from these meeting notes as a JSON array of short strings "
+        '(e.g. ["Send agenda to Alex", "Review Q4 doc"]). If there are none, return [].\n\n'
+        f"{raw_notes[:3000]}"
+    )
+    try:
+        raw = await _chat_completion(prompt, max_tokens=500)
+        match = re.search(r"\[.*\]", raw, flags=re.DOTALL)
+        return json.loads(match.group(0)) if match else []
+    except Exception as exc:
+        logger.warning("llm.action_item_extraction_failed", error=str(exc))
+        return []

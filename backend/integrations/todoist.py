@@ -26,6 +26,10 @@ class TodoistClient:
     def _headers(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {self.settings.todoist_api_key}", "Content-Type": "application/json"}
 
+    @property
+    def is_mock(self) -> bool:
+        return self.settings.mock_mode or not self.settings.todoist_api_key
+
     async def create_task(self, data: dict[str, Any]) -> dict[str, Any]:
         if self.settings.mock_mode or not self.settings.todoist_api_key:
             await asyncio.sleep(0.1)
@@ -98,4 +102,21 @@ class TodoistClient:
                 resp.raise_for_status()
         except Exception as exc:
             logger.error("todoist.close_task_failed", error=str(exc))
+            raise IntegrationError("todoist", str(exc)) from exc
+
+    async def get_completed_tasks(self, since_iso: str, until_iso: str) -> list[dict[str, Any]]:
+        if self.is_mock:
+            await asyncio.sleep(0.1)
+            return [{"content": "Mock completed task", "completed_at": since_iso}]
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(
+                    f"{BASE_URL}/tasks/completed/by_completion_date",
+                    headers=self._headers(),
+                    params={"since": since_iso, "until": until_iso},
+                )
+                resp.raise_for_status()
+                return resp.json().get("items", [])
+        except Exception as exc:
+            logger.error("todoist.get_completed_tasks_failed", error=str(exc))
             raise IntegrationError("todoist", str(exc)) from exc

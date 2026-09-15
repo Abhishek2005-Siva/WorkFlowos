@@ -8,11 +8,13 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.agents.reporting_agent import ReportingAgent
 from backend.config import get_settings
 from backend.core.orchestrator import orchestrator
+from backend.core.scheduler import scheduler
 from backend.core.system_state import system_state
 from backend.models.db import init_db
-from backend.routes import agents, calendar, events, knowledge, webhooks, workflow, ws
+from backend.routes import agents, calendar, discord_interactions, events, knowledge, slack_commands, webhooks, workflow, ws
 from backend.utils.logging import configure_logging, get_logger
 
 configure_logging()
@@ -88,12 +90,21 @@ async def lifespan(app: FastAPI):
     if settings.gmail_watch_topic:
         _gmail_watch_task = asyncio.create_task(_gmail_watch_renewal_loop())
 
+    if settings.enable_daily_standup:
+        scheduler.register("daily_standup", hour=8, minute=30, func=lambda: ReportingAgent().generate("standup"))
+    if settings.enable_weekly_report:
+        scheduler.register(
+            "weekly_report", hour=16, minute=0, weekday=4, func=lambda: ReportingAgent().generate("weekly")
+        )
+    scheduler.start()
+
     yield
 
     if _poll_task:
         _poll_task.cancel()
     if _gmail_watch_task:
         _gmail_watch_task.cancel()
+    scheduler.stop()
 
 
 app = FastAPI(title="WorkflowOS", version="1.0.0", lifespan=lifespan)
@@ -110,8 +121,10 @@ app.add_middleware(
 
 app.include_router(agents.router)
 app.include_router(calendar.router)
+app.include_router(discord_interactions.router)
 app.include_router(events.router)
 app.include_router(knowledge.router)
+app.include_router(slack_commands.router)
 app.include_router(webhooks.router)
 app.include_router(workflow.router)
 app.include_router(ws.router)

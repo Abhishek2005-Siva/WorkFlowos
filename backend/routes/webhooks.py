@@ -12,7 +12,10 @@ import json
 import urllib.parse
 
 from fastapi import APIRouter, BackgroundTasks, Request
+from fastapi.responses import JSONResponse
 
+from backend.agents.issue_triage_agent import IssueTriageAgent
+from backend.agents.pr_review_agent import PRReviewAgent
 from backend.config import get_settings
 from backend.core.approvals import approval_store
 from backend.core.event_bus import event_bus
@@ -20,7 +23,7 @@ from backend.core.orchestrator import orchestrator
 from backend.core.system_state import system_state
 from backend.core.types import EventType
 from backend.utils.logging import get_logger
-from backend.utils.webhooks import verify_slack_signature
+from backend.utils.webhooks import verify_github_signature, verify_slack_signature
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 logger = get_logger(__name__)
@@ -78,7 +81,7 @@ async def slack_interactivity(request: Request):
     timestamp = request.headers.get("X-Slack-Request-Timestamp", "0")
 
     if not verify_slack_signature(body, timestamp, signature, settings.slack_signing_secret):
-        return {"error": "invalid signature"}, 401
+        return JSONResponse(status_code=401, content={"error": "invalid signature"})
 
     form = urllib.parse.parse_qs(body.decode())
     payload_raw = form.get("payload", ["{}"])[0]
@@ -100,4 +103,51 @@ async def slack_interactivity(request: Request):
 async def todoist_webhook(request: Request):
     payload = await request.json()
     logger.info("webhook.todoist", event=payload.get("event_name"))
+    return {"status": "accepted"}
+
+
+async def _handle_pull_request(payload: dict) -> None:
+    pr = payload["pull_request"]
+    await PRReviewAgent().review(
+        pr_number=pr["number"],
+        title=pr["title"],
+        author=pr["user"]["login"],
+        html_url=pr["html_url"],
+    )
+
+
+async def _handle_issue(payload: dict) -> None:
+    issue = payload["issue"]
+    await IssueTriageAgent().triage(
+        issue_number=issue["number"],
+        title=issue["title"],
+        body=issue.get("body") or "",
+        html_url=issue["html_url"],
+    )
+
+
+@router.post("/github")
+async def github_webhook(request: Request, background_tasks: BackgroundTasks):
+    """Backs PR Review (#3) and Issue Triage (#10). Registered via
+    scripts/github_webhook_setup.py, which sets GITHUB_WEBHOOK_SECRET as
+    the shared HMAC secret GitHub signs every payload with."""
+    settings = get_settings()
+    body = await request.body()
+    signature = request.headers.get("X-Hub-Signature-256", "")
+
+    if not verify_github_signature(body, signature, settings.github_webhook_secret):
+        logger.warning("webhook.github_invalid_signature")
+        return {"status": "rejected"}
+
+    event = request.headers.get("X-GitHub-Event", "")
+    payload = json.loads(body)
+    action = payload.get("action")
+
+    if event == "pull_request" and action in ("opened", "reopened", "synchronize"):
+        background_tasks.add_task(_handle_pull_request, payload)
+    elif event == "issues" and action == "opened":
+        background_tasks.add_task(_handle_issue, payload)
+    else:
+        logger.info("webhook.github_ignored", event=event, action=action)
+
     return {"status": "accepted"}
