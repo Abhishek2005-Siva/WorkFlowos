@@ -78,6 +78,13 @@ export interface GraphSnapshot {
   relationships: GraphLink[];
 }
 
+export interface CalendarEvent {
+  summary: string;
+  start: string;
+  end: string;
+  calendar_id: string;
+}
+
 export interface PendingApproval {
   decision_id: string;
   payload: { agent: string; title: string; description: string };

@@ -3,6 +3,7 @@
 import { useWorkflowState } from "@/hooks/useWorkflowState";
 import AgentCard from "@/components/AgentCard";
 import ApprovalPanel from "@/components/ApprovalPanel";
+import CalendarPanel from "@/components/CalendarPanel";
 import ControlPanel from "@/components/ControlPanel";
 import LiveEventStream from "@/components/LiveEventStream";
 import ConflictPanel from "@/components/ConflictPanel";
@@ -42,6 +43,7 @@ export default function Dashboard() {
         <div className="space-y-6">
           <ConflictPanel latestEvent={latestEvent} />
           <DecisionTimeline latestEvent={latestEvent} />
+          <CalendarPanel latestEvent={latestEvent} />
         </div>
       </div>
 

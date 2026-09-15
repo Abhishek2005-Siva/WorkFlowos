@@ -12,7 +12,7 @@ from backend.config import get_settings
 from backend.core.orchestrator import orchestrator
 from backend.core.system_state import system_state
 from backend.models.db import init_db
-from backend.routes import agents, events, knowledge, webhooks, workflow, ws
+from backend.routes import agents, calendar, events, knowledge, webhooks, workflow, ws
 from backend.utils.logging import configure_logging, get_logger
 
 configure_logging()
@@ -109,6 +109,7 @@ app.add_middleware(
 )
 
 app.include_router(agents.router)
+app.include_router(calendar.router)
 app.include_router(events.router)
 app.include_router(knowledge.router)
 app.include_router(webhooks.router)

@@ -27,6 +27,10 @@ export const api = {
   resolveApproval: (decisionId: string, approved: boolean) =>
     request<{ resolved: boolean }>(`/workflow/approvals/${decisionId}?approved=${approved}`, { method: "POST" }),
   health: () => request<{ status: string; mock_mode: boolean }>("/health"),
+  calendarEvents: (daysForward = 14, daysBack = 1) =>
+    request<{ events: import("./types").CalendarEvent[]; mock: boolean }>(
+      `/calendar/events?days_forward=${daysForward}&days_back=${daysBack}`
+    ),
   liveStatus: () => request<{ live: boolean; gmail_watch_configured: boolean }>("/workflow/live-status"),
   setLiveStatus: (live: boolean) =>
     request<{ live: boolean; error?: string }>(`/workflow/live-status?live=${live}`, { method: "POST" }),

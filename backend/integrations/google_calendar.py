@@ -91,6 +91,10 @@ class CalendarClient:
     def _use_mock(self) -> bool:
         return self.settings.mock_mode or not os.path.exists(self.settings.google_token_path)
 
+    @property
+    def is_mock(self) -> bool:
+        return self._use_mock()
+
     async def list_events(
         self,
         time_min: datetime,
