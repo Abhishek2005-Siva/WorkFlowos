@@ -42,25 +42,30 @@ export default function ApprovalPanel({ latestEvent }: { latestEvent: EventItem 
   if (pending.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-amber-500/40 bg-amber-950/10 p-4">
-      <h2 className="mb-3 text-lg font-bold text-white">🙋 Needs Your Approval</h2>
+    <div className="animate-fade-in-up rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-amber-900/5 p-5 backdrop-blur-md">
+      <h2 className="mb-3 flex items-center gap-2 text-lg font-bold text-white">
+        <span className="flex h-8 w-8 animate-glow-pulse items-center justify-center rounded-lg bg-amber-500/20 text-base">
+          🙋
+        </span>
+        Needs Your Approval
+      </h2>
       <div className="space-y-2">
         {pending.map((p) => (
-          <div key={p.decision_id} className="rounded-lg border border-slate-700 bg-slate-900/50 p-3 text-xs">
+          <div key={p.decision_id} className="rounded-xl border border-white/5 bg-black/25 p-3 text-xs">
             <p className="font-semibold text-white">{p.payload.title}</p>
             <p className="mt-1 text-slate-400">{p.payload.description}</p>
             <div className="mt-3 flex gap-2">
               <button
                 onClick={() => respond(p.decision_id, true)}
                 disabled={resolving === p.decision_id}
-                className="rounded bg-emerald-600 px-3 py-1.5 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                className="rounded-lg bg-emerald-500 px-3 py-1.5 font-semibold text-black transition hover:bg-emerald-400 disabled:opacity-50"
               >
                 ✅ Approve
               </button>
               <button
                 onClick={() => respond(p.decision_id, false)}
                 disabled={resolving === p.decision_id}
-                className="rounded bg-red-600 px-3 py-1.5 font-semibold text-white hover:bg-red-500 disabled:opacity-50"
+                className="rounded-lg bg-red-500 px-3 py-1.5 font-semibold text-white transition hover:bg-red-400 disabled:opacity-50"
               >
                 ❌ Reject
               </button>

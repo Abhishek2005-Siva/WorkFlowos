@@ -43,20 +43,30 @@ export default function DecisionTimeline({ latestEvent }: { latestEvent: EventIt
   };
 
   return (
-    <div className="rounded-xl border border-slate-700 bg-slate-800/60 p-4">
-      <h2 className="mb-3 text-lg font-bold text-white">📊 Decision Timeline</h2>
+    <div className="glass-card animate-fade-in-up rounded-2xl p-5">
+      <h2 className="mb-3 flex items-center gap-2 text-lg font-bold text-white">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500/20 to-cyan-500/20 text-base">
+          📊
+        </span>
+        Decision Timeline
+      </h2>
 
       {decisions.length === 0 && (
         <p className="py-6 text-center text-sm text-slate-500">No decisions logged yet.</p>
       )}
 
-      <div className="space-y-3">
-        {decisions.map((d) => (
-          <div key={d.decision_id} className="flex gap-3">
-            <div className="mt-0.5 text-xl">{TYPE_ICON[d.type] ?? "📌"}</div>
+      <div className="space-y-2.5">
+        {decisions.map((d, i) => (
+          <div key={d.decision_id} className="relative flex gap-3">
+            {i < decisions.length - 1 && (
+              <div className="absolute left-[15px] top-8 h-[calc(100%-4px)] w-px bg-gradient-to-b from-slate-600 to-transparent" />
+            )}
+            <div className="z-10 mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-900 text-sm">
+              {TYPE_ICON[d.type] ?? "📌"}
+            </div>
             <button
               onClick={() => toggle(d)}
-              className="flex-1 rounded-lg border border-slate-700 bg-slate-900/40 p-3 text-left text-xs transition hover:border-cyan-500/60"
+              className="flex-1 rounded-xl border border-white/5 bg-black/20 p-3 text-left text-xs transition-all hover:border-cyan-500/40 hover:bg-black/30"
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="font-semibold text-white">{d.title}</span>
@@ -69,7 +79,7 @@ export default function DecisionTimeline({ latestEvent }: { latestEvent: EventIt
               </p>
 
               {expandedId === d.decision_id && (
-                <div className="mt-3 space-y-1 border-t border-slate-700 pt-2">
+                <div className="mt-3 space-y-1 border-t border-white/5 pt-2">
                   {reasoningTrace.length === 0 && <p className="text-slate-500">No reasoning trace recorded.</p>}
                   {reasoningTrace.map((r, i) => (
                     <div key={i} className="flex gap-2 text-slate-300">

@@ -15,15 +15,27 @@ const AGENT_EMOJI: Record<string, string> = {
   "Social Agent": "💬",
 };
 
-const STATUS_STYLES: Record<string, { dot: string; ring: string; label: string }> = {
-  idle: { dot: "bg-slate-500", ring: "", label: "Idle" },
-  thinking: { dot: "bg-blue-500 animate-pulse", ring: "ring-blue-500/40", label: "Thinking" },
-  acting: { dot: "bg-emerald-500 animate-pulse", ring: "ring-emerald-500/40", label: "Acting" },
-  negotiating: { dot: "bg-amber-500 animate-pulse", ring: "ring-amber-500/50", label: "Negotiating" },
-  waiting: { dot: "bg-purple-500 animate-pulse", ring: "ring-purple-500/40", label: "Waiting" },
-  escalated: { dot: "bg-red-500 animate-ping", ring: "ring-red-500/50", label: "Escalated" },
-  error: { dot: "bg-red-600", ring: "ring-red-600/50", label: "Error" },
+const AGENT_GRADIENT: Record<string, string> = {
+  "Email Agent": "from-sky-500/25 to-sky-600/5",
+  "Calendar Agent": "from-emerald-500/25 to-emerald-600/5",
+  "Task Agent": "from-amber-500/25 to-amber-600/5",
+  "Knowledge Graph Agent": "from-purple-500/25 to-purple-600/5",
+  "Slack Coordination Hub": "from-pink-500/25 to-pink-600/5",
+  "Alert Agent": "from-orange-500/25 to-orange-600/5",
+  "GitHub Agent": "from-slate-400/25 to-slate-600/5",
 };
+
+const STATUS_STYLES: Record<string, { dot: string; glow: string; label: string; text: string }> = {
+  idle: { dot: "bg-slate-500", glow: "", label: "Idle", text: "text-slate-400" },
+  thinking: { dot: "bg-blue-400", glow: "shadow-[0_0_12px_2px_rgba(96,165,250,0.5)]", label: "Thinking", text: "text-blue-300" },
+  acting: { dot: "bg-emerald-400", glow: "shadow-[0_0_12px_2px_rgba(52,211,153,0.5)]", label: "Acting", text: "text-emerald-300" },
+  negotiating: { dot: "bg-amber-400", glow: "shadow-[0_0_12px_2px_rgba(251,191,36,0.5)]", label: "Negotiating", text: "text-amber-300" },
+  waiting: { dot: "bg-purple-400", glow: "shadow-[0_0_12px_2px_rgba(192,132,252,0.5)]", label: "Waiting", text: "text-purple-300" },
+  escalated: { dot: "bg-red-500", glow: "shadow-[0_0_14px_3px_rgba(239,68,68,0.6)]", label: "Escalated", text: "text-red-300" },
+  error: { dot: "bg-red-600", glow: "shadow-[0_0_14px_3px_rgba(220,38,38,0.6)]", label: "Error", text: "text-red-400" },
+};
+
+const ACTIVE_STATUSES = new Set(["thinking", "acting", "negotiating", "waiting"]);
 
 function timeAgo(iso: string | null): string {
   if (!iso) return "never";
@@ -38,21 +50,31 @@ function timeAgo(iso: string | null): string {
 export default function AgentCard({ agent }: { agent: Agent }) {
   const style = STATUS_STYLES[agent.status] ?? STATUS_STYLES.idle;
   const emoji = AGENT_EMOJI[agent.name] ?? "🤖";
+  const gradient = AGENT_GRADIENT[agent.name] ?? "from-slate-500/25 to-slate-600/5";
   const lastReasoning = agent.reasoning_trace[agent.reasoning_trace.length - 1];
+  const isActive = ACTIVE_STATUSES.has(agent.status);
 
   return (
     <div
-      className={`rounded-xl border border-slate-700 bg-slate-800/80 p-4 transition-all hover:border-cyan-500/60 ring-1 ring-transparent ${style.ring}`}
+      className={`glass-card group relative overflow-hidden rounded-2xl p-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl ${
+        isActive ? "border-white/20" : ""
+      }`}
     >
-      <div className="mb-3 flex items-center justify-between">
-        <span className="text-2xl">{emoji}</span>
-        <span className={`h-3 w-3 rounded-full ${style.dot}`} title={style.label} />
+      {isActive && <div className="absolute inset-0 animate-shimmer" />}
+
+      <div className="relative mb-3 flex items-center justify-between">
+        <span
+          className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br text-lg ${gradient} ring-1 ring-white/10 transition-transform group-hover:scale-105`}
+        >
+          {emoji}
+        </span>
+        <span className={`h-2.5 w-2.5 rounded-full ${style.dot} ${style.glow} transition-all`} title={style.label} />
       </div>
 
-      <h3 className="truncate text-sm font-semibold text-white">{agent.name}</h3>
-      <p className="mt-0.5 text-xs capitalize text-slate-400">{style.label}</p>
+      <h3 className="relative truncate text-sm font-semibold text-white">{agent.name}</h3>
+      <p className={`relative mt-0.5 text-xs font-medium ${style.text}`}>{style.label}</p>
 
-      <div className="mt-3 space-y-1 text-[11px] text-slate-500">
+      <div className="relative mt-3 space-y-1 text-[11px] text-slate-500">
         <div className="flex justify-between">
           <span>Last action</span>
           <span>{timeAgo(agent.last_action_time)}</span>
@@ -63,7 +85,10 @@ export default function AgentCard({ agent }: { agent: Agent }) {
       </div>
 
       {lastReasoning && (
-        <p className="mt-3 line-clamp-2 rounded bg-slate-900/60 p-2 text-[11px] text-slate-300" title={lastReasoning.reasoning}>
+        <p
+          className="relative mt-3 line-clamp-2 rounded-lg border border-white/5 bg-black/20 p-2 text-[11px] leading-relaxed text-slate-300"
+          title={lastReasoning.reasoning}
+        >
           {lastReasoning.reasoning}
         </p>
       )}

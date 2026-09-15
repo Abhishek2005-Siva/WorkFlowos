@@ -6,12 +6,14 @@ import os
 from typing import Any
 
 from backend.config import get_settings
+from backend.integrations.google_shared import GOOGLE_OAUTH_SCOPES
 from backend.utils.errors import AuthenticationError, IntegrationError
 from backend.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+# Must match GOOGLE_OAUTH_SCOPES exactly — see google_shared.py.
+SCOPES = GOOGLE_OAUTH_SCOPES
 
 
 class SheetsClient:

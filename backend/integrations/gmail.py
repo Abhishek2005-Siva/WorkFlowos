@@ -14,12 +14,16 @@ from datetime import datetime, timezone
 from typing import Any
 
 from backend.config import get_settings
+from backend.integrations.google_shared import GOOGLE_OAUTH_SCOPES
 from backend.utils.errors import AuthenticationError, IntegrationError
 from backend.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
-SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
+# Must match GOOGLE_OAUTH_SCOPES exactly, not just the gmail.readonly this
+# client actually uses — see google_shared.py for why a narrower list here
+# would corrupt the shared token file on the next refresh.
+SCOPES = GOOGLE_OAUTH_SCOPES
 
 _MOCK_INBOX: list[dict[str, Any]] = [
     {

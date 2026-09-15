@@ -15,10 +15,17 @@ export default function Dashboard() {
   const { agents, events, connected, latestEvent } = useWorkflowState();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 to-slate-900 px-4 py-8 sm:px-8">
-      <header className="mb-6">
-        <h1 className="text-3xl font-black text-white sm:text-4xl">🤖 WorkflowOS</h1>
-        <p className="mt-1 text-sm text-slate-400">Multi-agent orchestration platform — live agent status</p>
+    <div className="min-h-screen px-4 py-8 sm:px-8">
+      <header className="mb-6 flex items-center gap-4">
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500/30 to-purple-500/20 text-3xl ring-1 ring-white/10">
+          🤖
+        </span>
+        <div>
+          <h1 className="bg-gradient-to-r from-white to-slate-300 bg-clip-text text-3xl font-black text-transparent sm:text-4xl">
+            WorkflowOS
+          </h1>
+          <p className="mt-0.5 text-sm text-slate-400">Multi-agent orchestration platform — live agent status</p>
+        </div>
       </header>
 
       <div className="mb-6 space-y-4">
@@ -27,8 +34,10 @@ export default function Dashboard() {
       </div>
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
-        {agents.map((agent) => (
-          <AgentCard key={agent.id} agent={agent} />
+        {agents.map((agent, i) => (
+          <div key={agent.id} className="animate-fade-in-up" style={{ animationDelay: `${i * 40}ms` }}>
+            <AgentCard agent={agent} />
+          </div>
         ))}
       </div>
 
@@ -50,6 +59,10 @@ export default function Dashboard() {
       <div className="mt-6">
         <KnowledgeGraphView latestEvent={latestEvent} />
       </div>
+
+      <footer className="mt-10 pb-4 text-center text-[11px] text-slate-600">
+        WorkflowOS — agents that negotiate, not just automate.
+      </footer>
     </div>
   );
 }

@@ -23,14 +23,14 @@ const EVENT_ICONS: Record<string, string> = {
 };
 
 const CATEGORY_STYLES: Record<string, string> = {
-  conflict: "border-l-4 border-red-500 bg-red-950/20",
-  negotiation: "border-l-4 border-amber-500 bg-amber-950/20",
-  error: "border-l-4 border-red-500 bg-red-950/20",
-  warning: "border-l-4 border-amber-500 bg-amber-950/10",
-  success: "border-l-4 border-emerald-500 bg-emerald-950/20",
-  status: "border-l-4 border-slate-600 bg-slate-800/40",
-  reasoning: "border-l-4 border-slate-700 bg-slate-800/30",
-  default: "border-l-4 border-cyan-600 bg-slate-800/40",
+  conflict: "border-red-500/60 bg-gradient-to-r from-red-500/10 to-transparent",
+  negotiation: "border-amber-500/60 bg-gradient-to-r from-amber-500/10 to-transparent",
+  error: "border-red-500/60 bg-gradient-to-r from-red-500/10 to-transparent",
+  warning: "border-amber-500/50 bg-gradient-to-r from-amber-500/5 to-transparent",
+  success: "border-emerald-500/60 bg-gradient-to-r from-emerald-500/10 to-transparent",
+  status: "border-slate-600/60 bg-white/[0.02]",
+  reasoning: "border-slate-700/60 bg-transparent",
+  default: "border-cyan-500/50 bg-gradient-to-r from-cyan-500/5 to-transparent",
 };
 
 function formatTime(iso: string): string {
@@ -49,20 +49,31 @@ export default function LiveEventStream({ events }: { events: EventItem[] }) {
   }, [events.length]);
 
   return (
-    <div className="flex h-[28rem] flex-col rounded-xl border border-slate-700 bg-slate-800/60 p-4">
-      <h2 className="mb-3 shrink-0 text-lg font-bold text-white">🎬 Live Event Stream</h2>
+    <div className="glass-card animate-fade-in-up flex h-[28rem] flex-col rounded-2xl p-5">
+      <h2 className="mb-3 flex shrink-0 items-center gap-2 text-lg font-bold text-white">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-500/20 to-purple-500/20 text-base">
+          🎬
+        </span>
+        Live Event Stream
+      </h2>
 
-      <div className="flex-1 space-y-2 overflow-y-auto pr-1">
+      <div className="flex-1 space-y-1.5 overflow-y-auto pr-1">
         {events.length === 0 && (
-          <p className="py-12 text-center text-sm text-slate-500">
-            No events yet — click &quot;Run Demo&quot; to watch the agents work.
-          </p>
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+            <span className="text-3xl opacity-40">📡</span>
+            <p className="text-sm text-slate-500">
+              No events yet — click &quot;Run Negotiation Demo&quot; to watch the agents work.
+            </p>
+          </div>
         )}
 
-        {events.map((event) => (
+        {events.map((event, i) => (
           <div
             key={event.id}
-            className={`rounded-r px-3 py-2 text-xs ${CATEGORY_STYLES[event.category] ?? CATEGORY_STYLES.default}`}
+            className={`animate-fade-in-up rounded-lg border-l-2 px-3 py-2 text-xs transition-colors hover:bg-white/[0.03] ${
+              CATEGORY_STYLES[event.category] ?? CATEGORY_STYLES.default
+            }`}
+            style={{ animationDelay: i >= events.length - 3 ? "0ms" : undefined }}
           >
             <div className="flex items-start gap-2">
               <span className="shrink-0 text-base leading-none">{EVENT_ICONS[event.type] ?? "🤖"}</span>

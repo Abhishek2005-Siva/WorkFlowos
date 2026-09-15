@@ -61,15 +61,18 @@ export default function ControlPanel({ connected }: { connected: boolean }) {
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-slate-700 bg-slate-800/60 p-4">
+    <div className="glass-card animate-fade-in-up flex flex-col gap-3 rounded-2xl p-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
-          <span className={`h-2.5 w-2.5 rounded-full ${connected ? "bg-emerald-500" : "bg-red-500"}`} />
+          <span className="relative flex h-2.5 w-2.5">
+            {connected && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />}
+            <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${connected ? "bg-emerald-500" : "bg-red-500"}`} />
+          </span>
           <span className="text-sm text-slate-300">{connected ? "Connected" : "Disconnected"}</span>
           {mockMode !== null && (
             <span
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                mockMode ? "bg-amber-500/20 text-amber-300" : "bg-emerald-500/20 text-emerald-300"
+              className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 ${
+                mockMode ? "bg-amber-500/10 text-amber-300 ring-amber-500/30" : "bg-emerald-500/10 text-emerald-300 ring-emerald-500/30"
               }`}
             >
               {mockMode ? "MOCK MODE — no real APIs called" : "LIVE — real APIs connected"}
@@ -81,14 +84,14 @@ export default function ControlPanel({ connected }: { connected: boolean }) {
           <button
             onClick={runDemo}
             disabled={busy !== null}
-            className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500 disabled:opacity-50"
+            className="rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-cyan-900/30 transition hover:from-cyan-400 hover:to-cyan-500 disabled:opacity-50"
           >
             {busy === "demo" ? "Running…" : "🤝 Run Negotiation Demo"}
           </button>
           <button
             onClick={processInbox}
             disabled={busy !== null}
-            className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-600 disabled:opacity-50"
+            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10 disabled:opacity-50"
           >
             {busy === "inbox" ? "Processing…" : "📥 Process Inbox"}
           </button>
@@ -96,13 +99,13 @@ export default function ControlPanel({ connected }: { connected: boolean }) {
       </div>
 
       {blockedReason && (
-        <p className="rounded-lg border border-amber-500/40 bg-amber-950/20 px-3 py-2 text-xs text-amber-300">
+        <p className="animate-fade-in-up rounded-xl border border-amber-500/30 bg-amber-950/20 px-3 py-2 text-xs text-amber-300">
           ⚠️ {blockedReason}
         </p>
       )}
 
       {isLive !== null && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-700 bg-slate-900/50 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/5 bg-black/20 p-3.5">
           <div>
             <p className="text-sm font-semibold text-white">
               {isLive ? "🟢 Live — reading real Gmail automatically" : "⏸️ Stopped — automation paused"}
@@ -119,8 +122,8 @@ export default function ControlPanel({ connected }: { connected: boolean }) {
           <button
             onClick={toggleLive}
             disabled={busy !== null || !watchConfigured}
-            className={`shrink-0 rounded-lg px-5 py-2 text-sm font-bold text-white transition disabled:opacity-50 ${
-              isLive ? "bg-red-600 hover:bg-red-500" : "bg-emerald-600 hover:bg-emerald-500"
+            className={`shrink-0 rounded-xl px-5 py-2 text-sm font-bold text-white shadow-lg transition disabled:opacity-50 ${
+              isLive ? "bg-gradient-to-r from-red-500 to-red-600 shadow-red-900/30 hover:from-red-400 hover:to-red-500" : "bg-gradient-to-r from-emerald-500 to-emerald-600 shadow-emerald-900/30 hover:from-emerald-400 hover:to-emerald-500"
             }`}
           >
             {busy === "live" ? "…" : isLive ? "⏹ Stop" : "▶ Go Live"}

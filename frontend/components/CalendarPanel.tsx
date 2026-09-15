@@ -48,12 +48,18 @@ export default function CalendarPanel({ latestEvent }: { latestEvent: EventItem 
   const grouped = groupByDay(events);
 
   return (
-    <div className="rounded-xl border border-slate-700 bg-slate-800/60 p-4">
+    <div className="glass-card animate-fade-in-up rounded-2xl p-5">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-lg font-bold text-white">📅 Calendar (next 14 days)</h2>
+        <h2 className="flex items-center gap-2 text-lg font-bold text-white">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 text-base">
+            📅
+          </span>
+          Calendar
+          <span className="text-xs font-normal text-slate-500">next 14 days</span>
+        </h2>
         {isMock !== null && (
           <span
-            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+            className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
               isMock ? "bg-amber-500/20 text-amber-300" : "bg-emerald-500/20 text-emerald-300"
             }`}
           >
@@ -71,12 +77,15 @@ export default function CalendarPanel({ latestEvent }: { latestEvent: EventItem 
       <div className="max-h-96 space-y-4 overflow-y-auto">
         {Array.from(grouped.entries()).map(([day, dayEvents]) => (
           <div key={day}>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
               {new Date(day).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
             </p>
             <div className="space-y-1.5">
               {dayEvents.map((e, i) => (
-                <div key={i} className="rounded-lg border border-slate-700 bg-slate-900/40 p-2.5 text-xs">
+                <div
+                  key={i}
+                  className="rounded-xl border border-white/5 bg-black/20 p-2.5 text-xs transition-colors hover:bg-black/30"
+                >
                   <p className="font-semibold text-white">{e.summary}</p>
                   <p className="mt-0.5 text-slate-400">{formatRange(e.start, e.end)}</p>
                 </div>
