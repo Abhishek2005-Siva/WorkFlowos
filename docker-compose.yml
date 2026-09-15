@@ -1,0 +1,24 @@
+# Optional local Postgres + Redis for machines that have Docker.
+# Not required for development — SQLite + an in-process cache fallback
+# work out of the box (see .env.example DATABASE_URL / REDIS_URL).
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: workflowos
+      POSTGRES_USER: workflowos
+      POSTGRES_PASSWORD: workflowos
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
