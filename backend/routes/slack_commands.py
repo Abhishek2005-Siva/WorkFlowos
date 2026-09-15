@@ -16,9 +16,6 @@ import httpx
 from fastapi import APIRouter, BackgroundTasks, Request
 from fastapi.responses import JSONResponse
 
-from backend.agents.capacity_agent import CapacityAgent
-from backend.agents.notes_agent import NotesAgent
-from backend.agents.reporting_agent import ReportingAgent
 from backend.config import get_settings
 from backend.core.orchestrator import orchestrator
 from backend.integrations.github import GitHubClient
@@ -38,12 +35,12 @@ async def _respond_later(response_url: str, text: str) -> None:
 
 
 async def _run_standup(response_url: str) -> None:
-    result = await ReportingAgent().generate("standup")
+    result = await orchestrator.reporting_agent.generate("standup")
     await _respond_later(response_url, f"✅ Standup posted.\n\n{result['summary']}")
 
 
 async def _run_capacity(response_url: str) -> None:
-    result = await CapacityAgent().report()
+    result = await orchestrator.capacity_agent.report()
     await _respond_later(
         response_url,
         f"📊 {result['load'].upper()} load — {result['open_tasks']} open tasks "
@@ -79,7 +76,7 @@ async def _run_notes(text: str, response_url: str) -> None:
         title, notes = text.split("|", 1)
     else:
         title, notes = "Untitled meeting", text
-    result = await NotesAgent().process(title.strip(), notes.strip())
+    result = await orchestrator.notes_agent.process(title.strip(), notes.strip())
     items = ", ".join(result["action_items"]) or "none"
     await _respond_later(response_url, f"📝 Logged notes for \"{title.strip()}\". Action items: {items}")
 

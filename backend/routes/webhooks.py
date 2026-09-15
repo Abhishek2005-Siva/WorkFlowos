@@ -14,8 +14,6 @@ import urllib.parse
 from fastapi import APIRouter, BackgroundTasks, Request
 from fastapi.responses import JSONResponse
 
-from backend.agents.issue_triage_agent import IssueTriageAgent
-from backend.agents.pr_review_agent import PRReviewAgent
 from backend.config import get_settings
 from backend.core.approvals import approval_store
 from backend.core.event_bus import event_bus
@@ -108,7 +106,7 @@ async def todoist_webhook(request: Request):
 
 async def _handle_pull_request(payload: dict) -> None:
     pr = payload["pull_request"]
-    await PRReviewAgent().review(
+    await orchestrator.pr_review_agent.review(
         pr_number=pr["number"],
         title=pr["title"],
         author=pr["user"]["login"],
@@ -118,7 +116,7 @@ async def _handle_pull_request(payload: dict) -> None:
 
 async def _handle_issue(payload: dict) -> None:
     issue = payload["issue"]
-    await IssueTriageAgent().triage(
+    await orchestrator.issue_triage_agent.triage(
         issue_number=issue["number"],
         title=issue["title"],
         body=issue.get("body") or "",

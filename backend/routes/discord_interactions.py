@@ -13,8 +13,8 @@ import httpx
 from fastapi import APIRouter, BackgroundTasks, Request
 from fastapi.responses import JSONResponse
 
-from backend.agents.reporting_agent import ReportingAgent
 from backend.config import get_settings
+from backend.core.orchestrator import orchestrator
 from backend.integrations.github import GitHubClient
 from backend.integrations.todoist import TodoistClient
 from backend.utils.logging import get_logger
@@ -57,7 +57,7 @@ async def _run_tasks(interaction_token: str) -> None:
 
 
 async def _run_weekly(interaction_token: str) -> None:
-    result = await ReportingAgent().generate("weekly")
+    result = await orchestrator.reporting_agent.generate("weekly")
     await _followup(interaction_token, f"📈 **Weekly report:**\n\n{result['summary']}")
 
 

@@ -8,7 +8,6 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.agents.reporting_agent import ReportingAgent
 from backend.config import get_settings
 from backend.core.orchestrator import orchestrator
 from backend.core.scheduler import scheduler
@@ -91,10 +90,16 @@ async def lifespan(app: FastAPI):
         _gmail_watch_task = asyncio.create_task(_gmail_watch_renewal_loop())
 
     if settings.enable_daily_standup:
-        scheduler.register("daily_standup", hour=8, minute=30, func=lambda: ReportingAgent().generate("standup"))
+        scheduler.register(
+            "daily_standup", hour=8, minute=30, func=lambda: orchestrator.reporting_agent.generate("standup")
+        )
     if settings.enable_weekly_report:
         scheduler.register(
-            "weekly_report", hour=16, minute=0, weekday=4, func=lambda: ReportingAgent().generate("weekly")
+            "weekly_report",
+            hour=16,
+            minute=0,
+            weekday=4,
+            func=lambda: orchestrator.reporting_agent.generate("weekly"),
         )
     scheduler.start()
 

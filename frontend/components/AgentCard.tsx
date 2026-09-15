@@ -13,6 +13,11 @@ const AGENT_EMOJI: Record<string, string> = {
   "Data Agent": "🗂️",
   "Logging Agent": "📈",
   "Social Agent": "💬",
+  "Reporting Agent": "☀️",
+  "PR Review Agent": "🔍",
+  "Issue Triage Agent": "🏷️",
+  "Capacity Agent": "📊",
+  "Notes Agent": "📝",
 };
 
 const AGENT_GRADIENT: Record<string, string> = {
@@ -23,6 +28,11 @@ const AGENT_GRADIENT: Record<string, string> = {
   "Slack Coordination Hub": "from-pink-500/25 to-pink-600/5",
   "Alert Agent": "from-orange-500/25 to-orange-600/5",
   "GitHub Agent": "from-slate-400/25 to-slate-600/5",
+  "Reporting Agent": "from-yellow-500/25 to-yellow-600/5",
+  "PR Review Agent": "from-indigo-500/25 to-indigo-600/5",
+  "Issue Triage Agent": "from-rose-500/25 to-rose-600/5",
+  "Capacity Agent": "from-teal-500/25 to-teal-600/5",
+  "Notes Agent": "from-cyan-500/25 to-cyan-600/5",
 };
 
 const STATUS_STYLES: Record<string, { dot: string; glow: string; label: string; text: string }> = {

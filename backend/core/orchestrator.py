@@ -18,9 +18,14 @@ from langgraph.graph import END, START, StateGraph
 from backend.agents.alert_agent import AlertAgent
 from backend.config import get_settings
 from backend.agents.calendar_agent import CalendarAgent
+from backend.agents.capacity_agent import CapacityAgent
 from backend.agents.email_agent import EmailAgent
 from backend.agents.github_agent import GitHubAgent
+from backend.agents.issue_triage_agent import IssueTriageAgent
 from backend.agents.knowledge_graph_agent import KnowledgeGraphAgent
+from backend.agents.notes_agent import NotesAgent
+from backend.agents.pr_review_agent import PRReviewAgent
+from backend.agents.reporting_agent import ReportingAgent
 from backend.agents.slack_agent import SlackAgent
 from backend.agents.task_agent import TaskAgent
 from backend.core.approvals import approval_store
@@ -70,6 +75,16 @@ class Orchestrator:
         self.sheets_client = SheetsClient()
         self.protocol = AgentNegotiationProtocol(self.calendar_agent, self.task_agent)
 
+        # Standalone automations (#2-#10): not nodes in the meeting-orchestration
+        # graph below, invoked directly by webhooks/scheduler/slash-commands, but
+        # registered here too so their status/reasoning shows up on the dashboard
+        # like every other agent instead of only in the raw event log.
+        self.reporting_agent = ReportingAgent()
+        self.pr_review_agent = PRReviewAgent()
+        self.issue_triage_agent = IssueTriageAgent()
+        self.capacity_agent = CapacityAgent()
+        self.notes_agent = NotesAgent()
+
         self.agents = {
             "email": self.email_agent,
             "calendar": self.calendar_agent,
@@ -78,6 +93,11 @@ class Orchestrator:
             "slack": self.slack_agent,
             "alert": self.alert_agent,
             "github": self.github_agent,
+            "reporting": self.reporting_agent,
+            "pr_review": self.pr_review_agent,
+            "issue_triage": self.issue_triage_agent,
+            "capacity": self.capacity_agent,
+            "notes": self.notes_agent,
         }
 
         self.graph = self._build_graph()
