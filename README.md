@@ -1,5 +1,12 @@
 # 🤖 WorkflowOS
 
+**Live:** https://workflowos-alpha.vercel.app (frontend) ·
+https://backend-production-e622.up.railway.app (backend API) — running in
+real mode with NVIDIA, Todoist, Notion, GitHub, Telegram, and Discord
+connected. Gmail/Calendar and Slack are still pending on your end (Google
+OAuth consent + Slack channel creation — see
+[docs/API_INTEGRATIONS.md](docs/API_INTEGRATIONS.md)).
+
 Multi-agent orchestration platform: an Email Agent extracts intent with
 an LLM (NVIDIA NIM), a Calendar Agent finds a slot, a Task Agent flags a deadline
 conflict, and the two **negotiate a new time with each other** — no human
