@@ -47,6 +47,24 @@ def test_github_webhook_accepts_valid_signature(client, monkeypatch):
     assert resp.json() == {"status": "accepted"}
 
 
+def test_github_webhook_handles_ping_event(client, monkeypatch):
+    """Regression test: GitHub's initial verification ping (and any other
+    event/action combo this app doesn't act on) used to crash with
+    TypeError: got multiple values for argument 'event', because the
+    ignored-event log call passed event=... as a kwarg, colliding with
+    structlog's own positional `event` (the log message) parameter."""
+    monkeypatch.setattr(get_settings(), "github_webhook_secret", "topsecret")
+    body = json.dumps({"zen": "Anything added dilutes everything else.", "hook_id": 1}).encode()
+    signature = "sha256=" + hmac.new(b"topsecret", body, hashlib.sha256).hexdigest()
+    resp = client.post(
+        "/webhooks/github",
+        content=body,
+        headers={"X-Hub-Signature-256": signature, "X-GitHub-Event": "ping", "Content-Type": "application/json"},
+    )
+    assert resp.status_code == 200
+    assert resp.json() == {"status": "accepted"}
+
+
 def test_github_webhook_rejects_invalid_signature(client, monkeypatch):
     monkeypatch.setattr(get_settings(), "github_webhook_secret", "topsecret")
     body = b'{"action": "opened"}'

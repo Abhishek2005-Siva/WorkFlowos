@@ -100,7 +100,7 @@ async def slack_interactivity(request: Request):
 @router.post("/todoist")
 async def todoist_webhook(request: Request):
     payload = await request.json()
-    logger.info("webhook.todoist", event=payload.get("event_name"))
+    logger.info("webhook.todoist", event_name=payload.get("event_name"))
     return {"status": "accepted"}
 
 
@@ -146,6 +146,6 @@ async def github_webhook(request: Request, background_tasks: BackgroundTasks):
     elif event == "issues" and action == "opened":
         background_tasks.add_task(_handle_issue, payload)
     else:
-        logger.info("webhook.github_ignored", event=event, action=action)
+        logger.info("webhook.github_ignored", github_event=event, action=action)
 
     return {"status": "accepted"}
