@@ -26,6 +26,7 @@ from backend.integrations.google_sheets import SheetsClient
 from backend.integrations.slack import SlackClient
 from backend.integrations.todoist import TodoistClient
 from backend.utils.llm import llm_synthesize_standup
+from backend.utils.notify import safe_notify
 
 STANDUP_SHEET_TAB = "Standups"
 WEEKLY_SHEET_TAB = "WeeklyReports"
@@ -87,20 +88,26 @@ class ReportingAgent(BaseAgent):
         title = "Daily Standup" if kind == "standup" else "Weekly Status Report"
         message = f"{emoji} **{title}**\n\n{summary}"
 
-        await self.slack_client.send_message(channel=self.settings.standup_slack_channel, text=message)
+        await safe_notify(
+            self.name, "Slack", self.slack_client.send_message(channel=self.settings.standup_slack_channel, text=message)
+        )
 
         tab = STANDUP_SHEET_TAB if kind == "standup" else WEEKLY_SHEET_TAB
-        await self.sheets_client.ensure_tab_exists(tab, header=SHEET_HEADER)
-        await self.sheets_client.append_row(
-            [
-                datetime.now(timezone.utc).isoformat(),
-                kind,
-                window_hours,
-                len(activity["task_titles"]),
-                len(activity["commit_messages"]),
-                summary[:500],
-            ],
-            sheet_range=f"{tab}!A1",
+        await safe_notify(self.name, "Sheets", self.sheets_client.ensure_tab_exists(tab, header=SHEET_HEADER))
+        await safe_notify(
+            self.name,
+            "Sheets",
+            self.sheets_client.append_row(
+                [
+                    datetime.now(timezone.utc).isoformat(),
+                    kind,
+                    window_hours,
+                    len(activity["task_titles"]),
+                    len(activity["commit_messages"]),
+                    summary[:500],
+                ],
+                sheet_range=f"{tab}!A1",
+            ),
         )
 
         await event_bus.publish(

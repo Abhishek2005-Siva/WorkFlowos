@@ -20,6 +20,7 @@ from backend.integrations.google_sheets import SheetsClient
 from backend.integrations.slack import SlackClient
 from backend.integrations.telegram import TelegramClient
 from backend.utils.llm import llm_triage_issue
+from backend.utils.notify import safe_notify
 
 SHEET_TAB = "GitHubIssues"
 SHEET_HEADER = ["timestamp", "issue_number", "title", "priority", "reasoning"]
@@ -59,18 +60,30 @@ class IssueTriageAgent(BaseAgent):
             issue_number, f"🤖 Auto-triaged as **{priority}** priority.\n\n_{reasoning}_"
         )
 
-        await self.slack_client.send_message(
-            channel=self.settings.standup_slack_channel,
-            text=f"🏷️ Issue #{issue_number} triaged as *{priority}*: {title}\n{html_url}",
+        await safe_notify(
+            self.name,
+            "Slack",
+            self.slack_client.send_message(
+                channel=self.settings.standup_slack_channel,
+                text=f"🏷️ Issue #{issue_number} triaged as *{priority}*: {title}\n{html_url}",
+            ),
         )
 
         if priority in ("critical", "high"):
-            await self.telegram_client.send_message(f"🚨 {priority.upper()} issue: {title}\n{html_url}")
+            await safe_notify(
+                self.name,
+                "Telegram",
+                self.telegram_client.send_message(f"🚨 {priority.upper()} issue: {title}\n{html_url}"),
+            )
 
-        await self.sheets_client.ensure_tab_exists(SHEET_TAB, header=SHEET_HEADER)
-        await self.sheets_client.append_row(
-            [datetime.now(timezone.utc).isoformat(), issue_number, title, priority, reasoning],
-            sheet_range=f"{SHEET_TAB}!A1",
+        await safe_notify(self.name, "Sheets", self.sheets_client.ensure_tab_exists(SHEET_TAB, header=SHEET_HEADER))
+        await safe_notify(
+            self.name,
+            "Sheets",
+            self.sheets_client.append_row(
+                [datetime.now(timezone.utc).isoformat(), issue_number, title, priority, reasoning],
+                sheet_range=f"{SHEET_TAB}!A1",
+            ),
         )
 
         await event_bus.publish(

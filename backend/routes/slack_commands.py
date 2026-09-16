@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import urllib.parse
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Request
@@ -104,18 +105,25 @@ async def slack_command(request: Request, background_tasks: BackgroundTasks):
     text = form.get("text", [""])[0]
     response_url = form.get("response_url", [""])[0]
 
-    handlers = {
-        "/standup": lambda: _run_standup(response_url),
-        "/capacity": lambda: _run_capacity(response_url),
-        "/commits": lambda: _run_commits(response_url),
-        "/meeting": lambda: _run_meeting(text, response_url),
-        "/notes": lambda: _run_notes(text, response_url),
-        "/assign": lambda: _run_assign(text, response_url),
+    # (function, args) rather than a zero-arg lambda wrapping the call:
+    # BackgroundTasks only awaits a task if the callable it was GIVEN is
+    # itself a coroutine function. A lambda that calls an async function
+    # and returns the resulting coroutine is a plain sync callable as far
+    # as that check is concerned, so it'd run in a worker thread, produce
+    # an unawaited coroutine, and silently do nothing.
+    handlers: dict[str, tuple[Any, tuple]] = {
+        "/standup": (_run_standup, (response_url,)),
+        "/capacity": (_run_capacity, (response_url,)),
+        "/commits": (_run_commits, (response_url,)),
+        "/meeting": (_run_meeting, (text, response_url)),
+        "/notes": (_run_notes, (text, response_url)),
+        "/assign": (_run_assign, (text, response_url)),
     }
 
-    handler = handlers.get(command)
-    if not handler:
+    entry = handlers.get(command)
+    if not entry:
         return {"response_type": "ephemeral", "text": f"Unknown command {command}"}
 
-    background_tasks.add_task(handler)
+    func, args = entry
+    background_tasks.add_task(func, *args)
     return {"response_type": "ephemeral", "text": "⏳ Working on it…"}

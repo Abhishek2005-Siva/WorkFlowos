@@ -21,6 +21,7 @@ from backend.integrations.github import GitHubClient
 from backend.integrations.google_sheets import SheetsClient
 from backend.integrations.slack import SlackClient
 from backend.utils.llm import llm_review_code
+from backend.utils.notify import safe_notify
 
 SHEET_TAB = "PRReviews"
 SHEET_HEADER = ["timestamp", "pr_number", "title", "author", "verdict_snippet"]
@@ -54,15 +55,23 @@ class PRReviewAgent(BaseAgent):
         await self.set_status(AgentStatus.ACTING)
         await self.github_client.comment_issue(pr_number, f"🤖 **Automated review**\n\n{review_text}")
 
-        await self.slack_client.send_message(
-            channel=self.settings.standup_slack_channel,
-            text=f"🔍 Reviewed PR #{pr_number} *{title}* by {author}\n{html_url}\n\n{review_text[:300]}",
+        await safe_notify(
+            self.name,
+            "Slack",
+            self.slack_client.send_message(
+                channel=self.settings.standup_slack_channel,
+                text=f"🔍 Reviewed PR #{pr_number} *{title}* by {author}\n{html_url}\n\n{review_text[:300]}",
+            ),
         )
 
-        await self.sheets_client.ensure_tab_exists(SHEET_TAB, header=SHEET_HEADER)
-        await self.sheets_client.append_row(
-            [datetime.now(timezone.utc).isoformat(), pr_number, title, author, review_text[:200]],
-            sheet_range=f"{SHEET_TAB}!A1",
+        await safe_notify(self.name, "Sheets", self.sheets_client.ensure_tab_exists(SHEET_TAB, header=SHEET_HEADER))
+        await safe_notify(
+            self.name,
+            "Sheets",
+            self.sheets_client.append_row(
+                [datetime.now(timezone.utc).isoformat(), pr_number, title, author, review_text[:200]],
+                sheet_range=f"{SHEET_TAB}!A1",
+            ),
         )
 
         await event_bus.publish(

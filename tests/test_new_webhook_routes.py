@@ -1,12 +1,15 @@
 import hashlib
 import hmac
 import json
+import time
+import urllib.parse
 
 import pytest
 from fastapi.testclient import TestClient
 from nacl.signing import SigningKey
 
 from backend.config import get_settings
+from backend.core.orchestrator import orchestrator
 from backend.main import app
 
 
@@ -74,3 +77,35 @@ def test_github_webhook_rejects_invalid_signature(client, monkeypatch):
         headers={"X-Hub-Signature-256": "sha256=deadbeef", "X-GitHub-Event": "issues"},
     )
     assert resp.json() == {"status": "rejected"}
+
+
+def test_slack_capacity_command_actually_runs_in_background(client, monkeypatch):
+    """Regression test: /slack/commands used to dispatch background work
+    via `background_tasks.add_task(lambda: _run_capacity(response_url))`.
+    Starlette only awaits a background task if the callable it was GIVEN
+    is itself a coroutine function; a lambda that calls one and returns
+    the resulting coroutine is a plain sync callable, so it ran in a
+    worker thread, produced (and discarded) an unawaited coroutine, and
+    the command silently did nothing. This checks the agent it should
+    drive actually executed, not just that the ack was returned."""
+    monkeypatch.setattr(get_settings(), "slack_signing_secret", "topsecret")
+    orchestrator.capacity_agent.last_action_time = None
+
+    body = urllib.parse.urlencode(
+        {"command": "/capacity", "text": "", "response_url": "https://example.invalid/response"}
+    )
+    timestamp = str(int(time.time()))
+    basestring = f"v0:{timestamp}:{body}".encode()
+    signature = "v0=" + hmac.new(b"topsecret", basestring, hashlib.sha256).hexdigest()
+
+    resp = client.post(
+        "/slack/commands",
+        content=body,
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-Slack-Signature": signature,
+            "X-Slack-Request-Timestamp": timestamp,
+        },
+    )
+    assert resp.status_code == 200
+    assert orchestrator.capacity_agent.last_action_time is not None

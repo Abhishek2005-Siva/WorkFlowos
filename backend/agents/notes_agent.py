@@ -20,6 +20,7 @@ from backend.core.types import AgentStatus, EventType
 from backend.integrations.notion import NotionClient
 from backend.integrations.todoist import TodoistClient
 from backend.utils.llm import llm_extract_action_items
+from backend.utils.notify import safe_notify
 
 
 class NotesAgent(BaseAgent):
@@ -44,15 +45,19 @@ class NotesAgent(BaseAgent):
             task = await self.todoist_client.create_task({"content": item})
             created_tasks.append(task["content"])
 
-        await self.notion_client.create_page(
-            self.settings.notion_decisions_db_id or "mock_decisions_db",
-            {
-                "Title": {"title": [{"text": {"content": f"Meeting notes: {meeting_title}"}}]},
-                "Agent": {"select": {"name": "Notes Agent"}},
-                "Decision Type": {"select": {"name": "meeting_notes"}},
-                "Timestamp": {"date": {"start": datetime.now(timezone.utc).isoformat()}},
-                "Reasoning Trace": {"rich_text": [{"text": {"content": raw_notes[:2000]}}]},
-            },
+        await safe_notify(
+            self.name,
+            "Notion",
+            self.notion_client.create_page(
+                self.settings.notion_decisions_db_id or "mock_decisions_db",
+                {
+                    "Title": {"title": [{"text": {"content": f"Meeting notes: {meeting_title}"}}]},
+                    "Agent": {"select": {"name": "Notes Agent"}},
+                    "Decision Type": {"select": {"name": "meeting_notes"}},
+                    "Timestamp": {"date": {"start": datetime.now(timezone.utc).isoformat()}},
+                    "Reasoning Trace": {"rich_text": [{"text": {"content": raw_notes[:2000]}}]},
+                },
+            ),
         )
 
         await event_bus.publish(

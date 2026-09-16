@@ -22,6 +22,7 @@ from backend.integrations.google_calendar import CalendarClient
 from backend.integrations.google_sheets import SheetsClient
 from backend.integrations.slack import SlackClient
 from backend.integrations.todoist import TodoistClient
+from backend.utils.notify import safe_notify
 
 SHEET_TAB = "Capacity"
 SHEET_HEADER = ["timestamp", "open_tasks", "overdue_tasks", "calendar_busy_pct", "load_level"]
@@ -89,11 +90,17 @@ class CapacityAgent(BaseAgent):
             f"• {len(tasks)} open tasks ({overdue} overdue)\n"
             f"• {busy_pct}% of the next 48h booked"
         )
-        await self.slack_client.send_message(channel=self.settings.standup_slack_channel, text=message)
+        await safe_notify(
+            self.name, "Slack", self.slack_client.send_message(channel=self.settings.standup_slack_channel, text=message)
+        )
 
-        await self.sheets_client.ensure_tab_exists(SHEET_TAB, header=SHEET_HEADER)
-        await self.sheets_client.append_row(
-            [now.isoformat(), len(tasks), overdue, busy_pct, load], sheet_range=f"{SHEET_TAB}!A1"
+        await safe_notify(self.name, "Sheets", self.sheets_client.ensure_tab_exists(SHEET_TAB, header=SHEET_HEADER))
+        await safe_notify(
+            self.name,
+            "Sheets",
+            self.sheets_client.append_row(
+                [now.isoformat(), len(tasks), overdue, busy_pct, load], sheet_range=f"{SHEET_TAB}!A1"
+            ),
         )
 
         await event_bus.publish(
